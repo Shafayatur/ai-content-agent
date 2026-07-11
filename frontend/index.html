@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>AI Content Agent</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #0f1115; color: #e8e8ea; }
+  #root { max-width: 760px; margin: 0 auto; padding: 24px; }
+  .msg { padding: 10px 14px; border-radius: 10px; margin: 8px 0; white-space: pre-wrap; line-height: 1.4; }
+  .user { background: #2b6cb0; margin-left: 60px; }
+  .assistant { background: #1e2128; margin-right: 60px; }
+  .tool { background: #2a2116; margin-right: 60px; font-size: 13px; color: #d8b56b; font-family: monospace; }
+  input, button { font-size: 15px; padding: 10px; border-radius: 8px; border: 1px solid #333; }
+  input { width: 100%; background: #1a1c22; color: #eee; }
+  button { background: #2b6cb0; color: white; border: none; cursor: pointer; margin-top: 8px; }
+  .row { display: flex; gap: 8px; }
+  h1 { font-size: 20px; }
+  .hint { color: #888; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const API_BASE = "http://localhost:8000";
+
+function App() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function ingest() {
+    await fetch(`${API_BASE}/ingest`, { method: "POST" });
+    alert("Brand knowledge base re-indexed.");
+  }
+
+  async function send() {
+    if (!input.trim()) return;
+    const next = [...messages, { role: "user", content: input }];
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next, user_id: "demo_user" }),
+      });
+      const data = await res.json();
+      setMessages([...next, { role: "assistant", content: data.reply }]);
+    } catch (e) {
+      setMessages([...next, { role: "assistant", content: "Error: " + e.message }]);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div>
+      <h1>AI Content Agent</h1>
+      <div className="hint">
+        RAG (brand voice + past posts) + memory + tool-calling, driving a social
+        content agent. Try: "Draft a LinkedIn post about our new retrieval pipeline"
+        or "What niche trends should I consider for X?"
+      </div>
+      <button onClick={ingest}>Re-index brand knowledge base</button>
+      <div style={{ marginTop: 16 }}>
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>
+            <b>{m.role === "user" ? "You" : "Agent"}:</b> {typeof m.content === "string" ? m.content : JSON.stringify(m.content)}
+          </div>
+        ))}
+        {loading && <div className="msg assistant">thinking…</div>}
+      </div>
+      <div className="row">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder="Ask the agent to draft, check trends, schedule, or review performance..."
+        />
+        <button onClick={send}>Send</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
