@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# secrets
+.env
+
+# generated at runtime — not source, shouldn't be committed
+chroma_store/
+memory_store/*.db
+
+# OS
+.DS_Store
