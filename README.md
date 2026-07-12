@@ -20,7 +20,8 @@ agent needs to not be a toy.
 ```
                         ┌─────────────────────────┐
    User message  ─────► │   Agent loop (agent.py)  │
-                        │  Claude + tool-use loop  │
+                        │  Gemini + automatic      │
+                        │  function calling        │
                         └────────────┬─────────────┘
                                      │ model decides which tool(s) to call
               ┌──────────────┬──────┴───────┬──────────────┬─────────────────┐
@@ -37,7 +38,11 @@ agent needs to not be a toy.
 The model itself decides, per turn, whether to pull brand context, check memory,
 check trends, or schedule — this is the "agent" part, not a hardcoded
 generate → post pipeline (see `backend/agent.py` system prompt for the rules
-it follows).
+it follows). Runs on **Google Gemini's free tier** (`gemini-2.0-flash`) via the
+`google-genai` SDK's automatic function calling: plain Python functions are
+passed as tools, and the SDK builds their schemas from type hints + docstrings
+and runs the call → execute → feed-back-in loop internally, capped at 10 calls
+per turn (`MAX_TOOL_ITERATIONS`).
 
 ## The feedback loop (why this is more than a content generator)
 
@@ -92,7 +97,7 @@ grounding actually doing something, not just decoration.
 |---|---|
 | RAG retrieval (Chroma) | Real |
 | Memory storage/recall (SQLite + Chroma) | Real |
-| Tool-calling loop (Anthropic API) | Real |
+| Tool-calling loop (Google Gemini free tier) | Real |
 | `schedule_post`, `get_engagement_metrics`, `search_trending_topics` | **Mocked** — synthetic but plausible data, clearly labeled in `tools.py`. Production swap: X API v2, LinkedIn Marketing API, Meta Graph API. |
 
 ## What I'd do at scale
@@ -106,12 +111,15 @@ grounding actually doing something, not just decoration.
   exact product names or ticket IDs that pure embedding similarity tends to miss.
 - Rate-limit and cap the tool-calling loop per user session (already capped at
   10 iterations per turn here) to bound cost from a confused agent looping.
+- The Gemini free tier has a per-minute/per-day request cap — fine for a demo
+  or personal use, but a real multi-user deployment would need a paid tier
+  or a fallback/queueing strategy for 429s.
 
 ## Running it
 
 ```bash
 pip install -r requirements.txt --break-system-packages   # or a venv, without the flag
-cp .env.example .env                                       # then fill in ANTHROPIC_API_KEY
+cp .env.example .env                                       # then fill in GEMINI_API_KEY
 export $(cat .env | xargs)
 
 # start the backend
@@ -121,6 +129,10 @@ uvicorn backend.main:app --reload --port 8000
 cd frontend && python3 -m http.server 5500
 # open http://localhost:5500 in a browser
 ```
+
+Get a free Gemini API key at **https://aistudio.google.com/apikey** (no
+billing setup required for the free tier — `gemini-2.0-flash` has a generous
+per-minute/per-day request quota that's more than enough for this project).
 
 In the UI, click **"Re-index brand knowledge base"** once at the start (this
 runs `/ingest`, which chunks and embeds `data/brand_docs/*.md` into Chroma —
@@ -149,7 +161,8 @@ backend/
   agent.py             # tool-calling loop + system prompt
   rag.py               # chunking, ingestion, retrieval
   memory.py            # SQLite facts + Chroma "learnings"
-  tools.py             # tool schemas + implementations (real + mocked)
+  tools.py             # tool implementations (real + mocked); schemas are built
+                       # automatically by Gemini from wrapper fns in agent.py
   eval_retrieval.py     # retrieval hit-rate eval
 data/brand_docs/        # sample brand voice, past posts, style guide (RAG source)
 frontend/index.html     # single-file React chat UI (CDN, no build step)

@@ -23,16 +23,11 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 def chat(req: ChatRequest):
     result = agent.run_agent_turn(req.messages, user_id=req.user_id)
-    # convert content blocks to plain dicts so they're JSON-serializable back to the frontend
-    serializable_messages = []
-    for m in result["messages"]:
-        content = m["content"]
-        if isinstance(content, list):
-            content = [
-                c.to_dict() if hasattr(c, "to_dict") else c for c in content
-            ]
-        serializable_messages.append({"role": m["role"], "content": content})
-    return {"messages": serializable_messages, "reply": result["final_text"]}
+    return {
+        "messages": result["messages"],
+        "reply": result["final_text"],
+        "tool_calls_made": result["tool_calls_made"],
+    }
 
 
 @app.post("/ingest")

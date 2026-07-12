@@ -50,7 +50,10 @@ function App() {
         body: JSON.stringify({ messages: next, user_id: "demo_user" }),
       });
       const data = await res.json();
-      setMessages([...next, { role: "assistant", content: data.reply }]);
+      const toolNote = data.tool_calls_made && data.tool_calls_made.length
+        ? `\n\n[tools used: ${data.tool_calls_made.join(", ")}]`
+        : "";
+      setMessages([...next, { role: "assistant", content: data.reply + toolNote }]);
     } catch (e) {
       setMessages([...next, { role: "assistant", content: "Error: " + e.message }]);
     }
