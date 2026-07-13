@@ -10,6 +10,7 @@ post's text without knowing whether it worked.
 """
 import os
 import re
+import threading
 import uuid
 import chromadb
 
@@ -18,6 +19,7 @@ COLLECTION_NAME = "brand_knowledge"
 
 _client = None
 _collection = None
+_ingest_lock = threading.Lock()
 
 
 def _get_collection():
@@ -62,32 +64,39 @@ def chunk_markdown(text: str, source: str, max_chars: int = 900, overlap: int = 
 
 def ingest_directory(dir_path: str):
     """Read every .md file in dir_path, chunk it, and add to the vector store.
-    Safe to re-run: clears and rebuilds the collection each time."""
+    Safe to re-run: clears and rebuilds the collection each time.
+
+    Guarded by a lock: FastAPI runs sync endpoints in a threadpool, so two
+    /ingest requests arriving close together (e.g. a double-click) can race --
+    one thread deletes the collection while another is still writing to it,
+    raising InvalidCollectionException. Serializing here makes repeat/rapid
+    calls safe instead of occasionally 500ing."""
     global _collection
-    collection = _get_collection()
+    with _ingest_lock:
+        _get_collection()  # ensures _client is initialized
 
-    # rebuild clean each run so re-ingesting doesn't duplicate chunks
-    _client.delete_collection(COLLECTION_NAME)
-    collection = _client.get_or_create_collection(COLLECTION_NAME)
-    _collection = collection
+        # rebuild clean each run so re-ingesting doesn't duplicate chunks
+        _client.delete_collection(COLLECTION_NAME)
+        collection = _client.get_or_create_collection(COLLECTION_NAME)
+        _collection = collection
 
-    all_chunks = []
-    for fname in os.listdir(dir_path):
-        if not fname.endswith(".md"):
-            continue
-        with open(os.path.join(dir_path, fname), "r") as f:
-            text = f.read()
-        all_chunks.extend(chunk_markdown(text, source=fname))
+        all_chunks = []
+        for fname in os.listdir(dir_path):
+            if not fname.endswith(".md"):
+                continue
+            with open(os.path.join(dir_path, fname), "r") as f:
+                text = f.read()
+            all_chunks.extend(chunk_markdown(text, source=fname))
 
-    if not all_chunks:
-        return 0
+        if not all_chunks:
+            return 0
 
-    collection.add(
-        ids=[c["id"] for c in all_chunks],
-        documents=[c["text"] for c in all_chunks],
-        metadatas=[c["metadata"] for c in all_chunks],
-    )
-    return len(all_chunks)
+        collection.add(
+            ids=[c["id"] for c in all_chunks],
+            documents=[c["text"] for c in all_chunks],
+            metadatas=[c["metadata"] for c in all_chunks],
+        )
+        return len(all_chunks)
 
 
 def retrieve(query: str, n_results: int = 4, source_filter: str = None):
