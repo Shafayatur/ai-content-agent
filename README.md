@@ -21,13 +21,13 @@ An agent that drafts, schedules, and improves social media posts — grounded in
 brand voice, with memory that persists across sessions.
 
 ```
-User ──► Agent loop (Groq) ──► decides which tool(s) to call
-                │
-     ┌──────────┼──────────┬───────────────┬──────────────────┐
-     ▼          ▼          ▼               ▼                  ▼
-  RAG        Memory     Trends         Schedule            Metrics
- (Chroma)  (SQLite +   (mocked)        (mocked)            (mocked)
-            Chroma)
+                   User ──► Agent loop (Groq) ──► decides which tool(s) to call
+                                               │
+                  ┌──────────┬─────────────────┼───────────────┬───────────────┐
+                  ▼          ▼                 ▼               ▼               ▼
+                RAG        Memory            Trends         Schedule         Metrics
+              (Chroma)  (SQLite +           (mocked)        (mocked)         (mocked)
+                          Chroma)
 ```
 
 The model decides per turn what to call — nothing here is a hardcoded pipeline.
