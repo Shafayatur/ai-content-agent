@@ -85,6 +85,23 @@ def recall_relevant_learnings(user_id: str, query: str, n_results: int = 3):
     return docs
 
 
+def list_all_learnings(user_id: str):
+    """Full unfiltered list for this user, for a memory-viewer UI -- distinct
+    from recall_relevant_learnings, which is a relevance-ranked subset used
+    inside the agent's own prompt. Returns [{'id':..., 'text':...}, ...]."""
+    if _learnings_collection.count() == 0:
+        return []
+    results = _learnings_collection.get(where={"user_id": user_id})
+    ids = results.get("ids", [])
+    docs = results.get("documents", [])
+    return [{"id": i, "text": d} for i, d in zip(ids, docs)]
+
+
+def forget_learning(learning_id: str):
+    """Delete a single learning by id (from list_all_learnings)."""
+    _learnings_collection.delete(ids=[learning_id])
+
+
 def build_memory_context(user_id: str, current_query: str) -> str:
     """Assembled into the system prompt: structured facts (always) + the most
     relevant past learnings for this specific request (not all of them)."""

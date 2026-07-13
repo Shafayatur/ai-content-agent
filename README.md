@@ -38,7 +38,7 @@ agent needs to not be a toy.
 The model itself decides, per turn, whether to pull brand context, check memory,
 check trends, or schedule — this is the "agent" part, not a hardcoded
 generate → post pipeline (see `backend/agent.py` system prompt for the rules
-it follows). Runs on **Groq's free tier** (`llama-3.3-70b-versatile`) via the
+it follows). Runs on **Groq's free tier** (`openai/gpt-oss-120b`) via the
 official `groq` SDK, which is OpenAI-compatible. Groq doesn't do automatic
 function calling the way some SDKs do, so `agent.py` hand-rolls the loop:
 call the model → execute any requested tool calls → feed results back as
@@ -137,7 +137,7 @@ cd frontend && python3 -m http.server 5500
 ```
 
 Get a free Groq API key at **https://console.groq.com/keys** (no billing
-setup required — Groq's free tier covers `llama-3.3-70b-versatile` with a
+setup required — Groq's free tier covers `openai/gpt-oss-120b` with a
 generous per-minute/per-day request quota, and isn't geo-restricted the way
 some providers' free tiers are).
 
@@ -160,6 +160,27 @@ You can also run the retrieval eval directly:
 python -m backend.eval_retrieval
 ```
 
+## The UI
+
+Three tabs:
+
+- **Chat** — talk to the agent. Every response ends with a trace line
+  (`→ tools  retrieve_brand_context · schedule_post`) showing exactly which
+  tools fired that turn, since watching the agent's actual decisions is the
+  point of this project, not just reading its final text.
+- **Scheduled Posts** — every post the agent has scheduled via `schedule_post`,
+  with live mocked engagement metrics. Confirms the "mocked" tools are
+  actually doing something server-side, not just replying in chat.
+- **Memory** — everything stored on disk for the current user: structured
+  facts and freeform learnings, each individually deletable. Refresh the page
+  after asking the agent to remember something, then check this tab — if it's
+  still there, that's proof it's reading from SQLite/Chroma, not just riding
+  along in the browser's conversation history.
+
+New endpoints backing these tabs: `GET /posts`, `GET /memory?user_id=...`,
+`POST /memory/forget` (delete one fact by key, one learning by id, or
+everything for a user).
+
 ## Repo layout
 
 ```
@@ -171,5 +192,6 @@ backend/
   tools.py             # tool schemas + implementations (real + mocked)
   eval_retrieval.py     # retrieval hit-rate eval
 data/brand_docs/        # sample brand voice, past posts, style guide (RAG source)
-frontend/index.html     # single-file React chat UI (CDN, no build step)
+frontend/index.html     # single-file React UI (CDN, no build step) --
+                       # Chat / Scheduled Posts / Memory tabs
 ```

@@ -9,13 +9,22 @@ until the model returns a plain text answer.
 """
 import json
 import os
+import time
 
+import groq
 from groq import Groq
 
 from . import tools
 
-MODEL = "llama-3.3-70b-versatile"  # free tier, supports tool calling well
+# openai/gpt-oss-120b (OpenAI's open-weight model, hosted free on Groq) instead
+# of llama-3.3-70b-versatile: the Llama model was intermittently emitting
+# malformed raw-text tool calls (<function=name>{...}</function>) that Groq's
+# parser rejects with a 400 tool_use_failed -- a known reliability gap with
+# Llama-family tool calling on Groq. gpt-oss is Groq's own recommendation for
+# tool-call-heavy workloads and hasn't shown the same failure mode in testing.
+MODEL = "openai/gpt-oss-120b"
 MAX_TOOL_ITERATIONS = 10
+MAX_MALFORMED_RETRIES = 2  # belt-and-suspenders: retry once or twice on tool_use_failed
 
 _client = None
 
@@ -43,12 +52,54 @@ Rules:
 - Respect platform constraints (character limits, hashtag conventions) exactly.
 - If nothing relevant is found in brand context, say so explicitly rather than
   inventing brand voice details.
+- GROUNDING IS MANDATORY, NOT OPTIONAL: every factual claim, number, feature
+  name, or detail in a draft must come from retrieved context (brand docs) or
+  from something the user told you directly in this conversation. If the user
+  hasn't given you specifics about what actually shipped/changed, do NOT
+  invent product details, metrics, feature names, "beta tester" quotes, or
+  timelines to fill the gap -- ask the user for the real specifics, or write
+  around the gap explicitly (e.g. "share the concrete detail you want to lead
+  with") rather than fabricating one.
+- Match the retrieved voice example's actual register, not just its topic.
+  If a retrieved past post is understated and admits tradeoffs, don't default
+  to generic hype language (emojis, "excited to announce", "stay tuned",
+  "game-changing") even if it's factually accurate -- the brand voice guide
+  explicitly rules out exactly that tone. When you retrieve a past post as an
+  example, treat its tone as the bar to match, not just its existence as a
+  citation.
 - When you learn something durable from a feedback loop (metrics + what
   worked), save it to memory so future drafts improve.
 - Explain your reasoning briefly when you decide to check trends, hold a post,
   or adapt content differently per platform -- the user is evaluating your
   decision-making, not just the output.
 """
+
+
+def _create_with_retry(client, messages):
+    """Groq occasionally returns a 400 tool_use_failed when the model emits a
+    malformed tool call (a known intermittent issue, not specific to any one
+    prompt) -- retry a couple times before giving up, since a re-roll usually
+    produces a well-formed call."""
+    last_error = None
+    for attempt in range(MAX_MALFORMED_RETRIES + 1):
+        try:
+            return client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                tools=tools.TOOL_SCHEMAS,
+                tool_choice="auto",
+                temperature=0,
+                max_tokens=1500,
+            )
+        except groq.BadRequestError as e:
+            body = getattr(e, "body", None) or {}
+            code = (body.get("error") or {}).get("code") if isinstance(body, dict) else None
+            if code == "tool_use_failed" and attempt < MAX_MALFORMED_RETRIES:
+                last_error = e
+                time.sleep(0.5)
+                continue
+            raise
+    raise last_error
 
 
 def _execute_tool(name: str, args: dict, user_id: str):
@@ -83,13 +134,7 @@ def run_agent_turn(conversation: list, user_id: str = "demo_user") -> dict:
     tool_calls_made = []
 
     for _ in range(MAX_TOOL_ITERATIONS):
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            tools=tools.TOOL_SCHEMAS,
-            tool_choice="auto",
-            max_tokens=1500,
-        )
+        response = _create_with_retry(client, messages)
         msg = response.choices[0].message
 
         if not msg.tool_calls:
