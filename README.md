@@ -1,197 +1,78 @@
+<div align="center">
+
 # AI Content Agent
 
-One agent, four archetypes stacked together on purpose: **RAG**, **long-term memory**,
-**MCP-style tool-calling**, and a **social media agent** as the concrete application
-that ties them together. (A fifth idea — medical image analysis — was deliberately
-left out: it's a computer-vision problem that doesn't architecturally belong inside
-an LLM tool-calling loop. If you want it later, it's a clean addition as a *sixth
-tool* the agent can call, not a redesign.)
+**RAG · Memory · Tool-calling — one agent, driving a social content workflow**
 
-## Why one project instead of five
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat-square&logo=fastapi)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Groq](https://img.shields.io/badge/LLM-Groq_(free)-F55036?style=flat-square)
+![Chroma](https://img.shields.io/badge/Vector_DB-Chroma-6E56CF?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
-A tool-calling agent that generates social content is more convincing when it can
-actually *ground* its drafts (RAG over brand voice + past posts) and *remember*
-what worked last time (memory), instead of generating from a blank system prompt
-every call. That's not five projects bolted together — it's what a real content
-agent needs to not be a toy.
+</div>
 
-## Architecture
+---
 
-```
-                        ┌─────────────────────────┐
-   User message  ─────► │   Agent loop (agent.py)  │
-                        │  Groq + hand-rolled      │
-                        │  tool-calling loop       │
-                        └────────────┬─────────────┘
-                                     │ model decides which tool(s) to call
-              ┌──────────────┬──────┴───────┬──────────────┬─────────────────┐
-              ▼              ▼              ▼              ▼                 ▼
-     retrieve_brand_   recall_memory / search_trending  schedule_post   get_engagement_
-       context (RAG)     save_memory    _topics (mock)     (mock)         metrics (mock)
-              │              │
-              ▼              ▼
-      Chroma vector      SQLite facts +
-      store (brand       Chroma "learnings"
-      docs, chunked)     collection
-```
+## What it does
 
-The model itself decides, per turn, whether to pull brand context, check memory,
-check trends, or schedule — this is the "agent" part, not a hardcoded
-generate → post pipeline (see `backend/agent.py` system prompt for the rules
-it follows). Runs on **Groq's free tier** (`openai/gpt-oss-120b`) via the
-official `groq` SDK, which is OpenAI-compatible. Groq doesn't do automatic
-function calling the way some SDKs do, so `agent.py` hand-rolls the loop:
-call the model → execute any requested tool calls → feed results back as
-`"tool"`-role messages → repeat, capped at 10 iterations (`MAX_TOOL_ITERATIONS`).
-
-*(An earlier version of this ran on Google Gemini's free tier, but that tier
-turned out to be unavailable in some regions — Groq's free tier isn't
-geo-restricted the same way. Anthropic's Claude API was the original paid
-option before that. Any of the three would work; the agent loop / tool
-architecture is the same regardless of provider.)*
-
-## The feedback loop (why this is more than a content generator)
+An agent that drafts, schedules, and improves social media posts — grounded in your actual
+brand voice, with memory that persists across sessions.
 
 ```
-draft (grounded in RAG + memory)
-  → schedule_post (mocked)
-  → get_engagement_metrics (mocked)
-  → agent evaluates what worked
-  → save_memory (durable learning, e.g. "concrete numbers beat vague claims")
-  → next draft's system-prompt memory context includes that learning
+User ──► Agent loop (Groq) ──► decides which tool(s) to call
+                │
+     ┌──────────┼──────────┬───────────────┬──────────────────┐
+     ▼          ▼          ▼               ▼                  ▼
+  RAG        Memory     Trends         Schedule            Metrics
+ (Chroma)  (SQLite +   (mocked)        (mocked)            (mocked)
+            Chroma)
 ```
 
-Example: `data/brand_docs/past_posts.md` already encodes one such learning
-("vague announcement posts underperform badly on this audience"). Ask the
-agent to draft an announcement-style post and it should retrieve that context
-and push back on vague phrasing rather than producing it — that's the
-grounding actually doing something, not just decoration.
+The model decides per turn what to call — nothing here is a hardcoded pipeline.
 
-## RAG design decisions
+## Features
 
-- **Chunking strategy: document-aware, header-based** (`backend/rag.py:chunk_markdown`).
-  Sections split on `## ` headers first, fixed-size-with-overlap only as a
-  fallback for oversized sections. This matters concretely here: `past_posts.md`
-  has one post + its engagement number + its "learning" per section — a naive
-  fixed-size chunker would sometimes split a post from its own outcome, and
-  retrieval would return "here's a post" with no signal on whether it worked.
-- **Retrieval eval included** (`backend/eval_retrieval.py`) — a 5-query hit-rate
-  test against known source documents, not just "it looks like it works."
-  Run it: `python -m backend.eval_retrieval`.
-- **No-match handling**: `retrieve_brand_context` returns an explicit
-  "no relevant context found" string rather than empty context the model might
-  paper over — the system prompt tells the agent to say so rather than invent
-  brand voice details.
-
-## Memory design decisions
-
-- **Two stores, deliberately** (`backend/memory.py`): structured facts in SQLite
-  (small, always loaded in full — e.g. explicit preferences) and freeform
-  "learnings" in a separate Chroma collection (larger, retrieved by relevance —
-  e.g. feedback-loop takeaways). Dumping every learning into every prompt would
-  grow unbounded; only structured facts are unconditionally loaded.
-- **Overwrite, not append**: `remember_fact` uses `INSERT OR REPLACE` — if a
-  preference changes, the old value is gone, not left to contradict the new one.
-- **Privacy**: memory is scoped by `user_id` everywhere, and `memory.forget()`
-  lets a user delete one fact or wipe everything. This demo intentionally only
-  stores content-strategy preferences — nothing sensitive — and that's a
-  deliberate scope decision, not an oversight.
-
-## What's mocked vs. real
-
-| Component | Status |
+| | |
 |---|---|
-| RAG retrieval (Chroma) | Real |
-| Memory storage/recall (SQLite + Chroma) | Real |
-| Tool-calling loop (Groq free tier) | Real |
-| `schedule_post`, `get_engagement_metrics`, `search_trending_topics` | **Mocked** — synthetic but plausible data, clearly labeled in `tools.py`. Production swap: X API v2, LinkedIn Marketing API, Meta Graph API. |
+| **RAG** | Header-aware chunking over brand voice, past posts, and style guide docs |
+| **Memory** | Structured facts (SQLite) + freeform learnings (Chroma), persists across sessions |
+| **Tool-calling** | Agent decides when to retrieve, remember, check trends, schedule, or check metrics |
+| **Transparency** | Every response shows exactly which tools fired |
+| **UI** | Chat / Scheduled Posts / Memory — three tabs, nothing hidden |
 
-## What I'd do at scale
-
-- Swap Chroma (local, single-process) for pgvector or a managed Pinecone/Weaviate
-  index once brand doc volume or concurrent users grow past what a local
-  persistent client comfortably handles.
-- Replace the mocked social APIs with real platform integrations, with an
-  actual async job queue for scheduling rather than an in-memory dict.
-- Add hybrid (BM25 + embedding) search once brand docs include things like
-  exact product names or ticket IDs that pure embedding similarity tends to miss.
-- Rate-limit and cap the tool-calling loop per user session (already capped at
-  10 iterations per turn here) to bound cost from a confused agent looping.
-- The Groq free tier has a per-minute/per-day request and token cap — fine for a demo
-  or personal use, but a real multi-user deployment would need a paid tier
-  or a fallback/queueing strategy for 429s.
-
-## Running it
+## Quick start
 
 ```bash
-pip install -r requirements.txt --break-system-packages   # or a venv, without the flag
-cp .env.example .env                                       # then fill in GROQ_API_KEY
-export $(cat .env | xargs)
+pip install -r requirements.txt
+cp .env.example .env        # add your GROQ_API_KEY — free at console.groq.com/keys
 
-# start the backend
-uvicorn backend.main:app --reload --port 8000
-
-# in another terminal, serve the frontend
-cd frontend && python3 -m http.server 5500
-# open http://localhost:5500 in a browser
+uvicorn backend.main:app --reload --port 8000     # terminal 1
+cd frontend && python3 -m http.server 5500        # terminal 2
 ```
 
-Get a free Groq API key at **https://console.groq.com/keys** (no billing
-setup required — Groq's free tier covers `openai/gpt-oss-120b` with a
-generous per-minute/per-day request quota, and isn't geo-restricted the way
-some providers' free tiers are).
+Open `http://localhost:5500`, click **Re-index knowledge base**, then chat.
 
-In the UI, click **"Re-index brand knowledge base"** once at the start (this
-runs `/ingest`, which chunks and embeds `data/brand_docs/*.md` into Chroma —
-first run downloads a small embedding model from Hugging Face, so it needs a
-normal internet connection).
+## What's real vs. mocked
 
-Then try:
-- *"Draft a LinkedIn post about our new retrieval pipeline improvements"*
-- *"What's trending in AI engineering right now, should I write about it?"*
-- *"Schedule that post for Tuesday 9am, then check its metrics"* (mocked, but
-  shows the full loop)
-- *"Remember that I prefer contrarian takes over neutral explainers"* — then
-  start a new conversation and ask it to draft something; it should recall
-  that preference.
+| | |
+|---|---|
+| RAG retrieval, memory storage, tool-calling loop | Real |
+| `schedule_post`, `get_engagement_metrics`, `search_trending_topics` | Mocked — clearly labeled, swap for real platform APIs in production |
 
-You can also run the retrieval eval directly:
-```bash
-python -m backend.eval_retrieval
-```
+## Stack
 
-## The UI
+Python · FastAPI · Groq (`openai/gpt-oss-120b`) · ChromaDB · SQLite · React (CDN, no build step)
 
-Three tabs:
-
-- **Chat** — talk to the agent. Every response ends with a trace line
-  (`→ tools  retrieve_brand_context · schedule_post`) showing exactly which
-  tools fired that turn, since watching the agent's actual decisions is the
-  point of this project, not just reading its final text.
-- **Scheduled Posts** — every post the agent has scheduled via `schedule_post`,
-  with live mocked engagement metrics. Confirms the "mocked" tools are
-  actually doing something server-side, not just replying in chat.
-- **Memory** — everything stored on disk for the current user: structured
-  facts and freeform learnings, each individually deletable. Refresh the page
-  after asking the agent to remember something, then check this tab — if it's
-  still there, that's proof it's reading from SQLite/Chroma, not just riding
-  along in the browser's conversation history.
-
-New endpoints backing these tabs: `GET /posts`, `GET /memory?user_id=...`,
-`POST /memory/forget` (delete one fact by key, one learning by id, or
-everything for a user).
-
-## Repo layout
+## Layout
 
 ```
-backend/
-  main.py              # FastAPI app: /chat, /ingest, /health
-  agent.py             # tool-calling loop + system prompt
-  rag.py               # chunking, ingestion, retrieval
-  memory.py            # SQLite facts + Chroma "learnings"
-  tools.py             # tool schemas + implementations (real + mocked)
-  eval_retrieval.py     # retrieval hit-rate eval
-data/brand_docs/        # sample brand voice, past posts, style guide (RAG source)
-frontend/index.html     # single-file React UI (CDN, no build step) --
-                       # Chat / Scheduled Posts / Memory tabs
+backend/     agent.py · rag.py · memory.py · tools.py · main.py · eval_retrieval.py
+data/        brand_docs/ — sample brand voice, past posts, style guide
+frontend/    index.html — single-file UI
 ```
+
+---
+
+<div align="center">MIT License</div>
