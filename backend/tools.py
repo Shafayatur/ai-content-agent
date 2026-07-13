@@ -6,10 +6,10 @@ get_engagement_metrics, search_trending_topics) are mocked with plausible
 synthetic data, clearly labeled as such -- see README for how these would be
 swapped for real X/LinkedIn API calls in production.
 
-Note: these are the underlying implementations. The model-facing wrapper
-functions (with docstrings the Gemini SDK reads as tool descriptions) live in
-agent.py, since a couple of these (save_memory, recall_memory) need a
-user_id bound in that isn't something the model itself should be filling in.
+Runs on Groq (OpenAI-compatible tool-calling format: TOOL_SCHEMAS below is
+sent as-is to chat.completions.create(tools=...)). save_memory/recall_memory
+take user_id as a parameter here, but it's bound by agent.py's execution
+loop, not something the model itself supplies as an argument.
 """
 import random
 import time
@@ -90,4 +90,103 @@ def get_engagement_metrics(post_id: str) -> str:
         f"[MOCKED] Metrics for {post_id} ({platform}): {likes} likes, "
         f"{comments} comments."
     )
+
+
+# --- Tool schemas sent to Groq (OpenAI-compatible function-calling format) ---
+TOOL_SCHEMAS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "retrieve_brand_context",
+            "description": (
+                "Retrieve relevant brand voice guidelines, past post examples, "
+                "or platform style rules from the knowledge base. Use this "
+                "before drafting content, or when asked what has worked before."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "What to search for"},
+                    "source_filter": {
+                        "type": "string",
+                        "description": "Optional: restrict to one doc, e.g. 'style_guide.md'",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "save_memory",
+            "description": (
+                "Save a durable fact or preference about this user/brand for "
+                "future sessions (e.g. 'prefers contrarian takes on LinkedIn'). "
+                "Use when the user states a preference or a feedback loop "
+                "reveals a lasting pattern."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"},
+                    "value": {"type": "string"},
+                },
+                "required": ["key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recall_memory",
+            "description": "Recall stored facts and relevant past learnings about this user before making a decision.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_trending_topics",
+            "description": "Check trending topics for a niche before drafting, to decide if a post should tie into something timely. MOCKED data.",
+            "parameters": {
+                "type": "object",
+                "properties": {"niche": {"type": "string"}},
+                "required": ["niche"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_post",
+            "description": "Schedule a finished draft for posting on a given platform at a given time. MOCKED -- does not really post anywhere.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string"},
+                    "platform": {"type": "string", "enum": ["linkedin", "twitter", "instagram"]},
+                    "scheduled_time": {"type": "string"},
+                },
+                "required": ["content", "platform", "scheduled_time"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_engagement_metrics",
+            "description": "Get engagement metrics for a previously scheduled/posted post_id, to evaluate performance and decide what to learn from it. MOCKED data.",
+            "parameters": {
+                "type": "object",
+                "properties": {"post_id": {"type": "string"}},
+                "required": ["post_id"],
+            },
+        },
+    },
+]
 
