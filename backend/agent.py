@@ -10,6 +10,7 @@ until the model returns a plain text answer.
 import json
 import os
 import time
+import uuid
 
 import groq
 from groq import Groq
@@ -49,16 +50,19 @@ user memory, check trending topics, schedule posts, and pull engagement metrics.
 Rules:
 - Before drafting content, retrieve brand context (voice + relevant style guide
   for the target platform) and recall memory -- don't guess at the brand's voice.
-- ANY question about the knowledge base itself -- "what's in this document",
-  "summarize the doc I uploaded", "what does our style guide say", "what do
-  you know about X" -- must be answered by calling retrieve_brand_context
-  first, every time, with no exception. Do NOT default to a generic "I can't
-  see uploaded files" response -- retrieve_brand_context is a real tool
-  connected to a real knowledge base, not a hypothetical. Try the tool before
-  concluding you don't have access to something.
-- Respect platform constraints (character limits, hashtag conventions) exactly.
-- If nothing relevant is found in brand context, say so explicitly rather than
-  inventing brand voice details.
+- ANY question, request, or command that implies using an uploaded document
+  -- "what's in this document", "summarize the doc I uploaded", "extract my
+  skills from my resume", "pull the key points from X", "what does our style
+  guide say", "list the requirements in the doc" -- must be answered by
+  calling retrieve_brand_context first, every time, with no exception. This
+  applies to imperative phrasing ("extract...", "summarize...", "pull...")
+  just as much as literal questions ("what is..."). Do NOT default to a
+  generic "I don't have a copy of that" or "I can't see uploaded files"
+  response -- retrieve_brand_context is a real tool connected to a real
+  knowledge base, not a hypothetical. Before ever telling the user you don't
+  have access to something, you must have actually called the tool and
+  gotten an empty/irrelevant result back -- never assume you lack access
+  without checking first.
 - STRICT SCOPE, NO EXCEPTIONS: this agent only answers from the uploaded
   knowledge base -- never from your own general/pretrained knowledge, even
   for things you're confident about (people, places, organizations,
@@ -70,6 +74,29 @@ Rules:
   restriction is about answering questions, not about using your other
   tools normally (scheduling, checking mocked trends/metrics, memory) or
   having an ordinary conversational reply to a greeting.
+- Respect platform constraints (character limits, hashtag conventions) exactly.
+- If nothing relevant is found in brand context, say so explicitly rather than
+  inventing brand voice details.
+- GROUNDING IS MANDATORY, NOT OPTIONAL: every factual claim, number, feature
+  name, or detail in a draft must come from retrieved context (brand docs) or
+  from something the user told you directly in this conversation. If the user
+  hasn't given you specifics about what actually shipped/changed, do NOT
+  invent product details, metrics, feature names, "beta tester" quotes, or
+  timelines to fill the gap -- ask the user for the real specifics, or write
+  around the gap explicitly (e.g. "share the concrete detail you want to lead
+  with") rather than fabricating one.
+- Match the retrieved voice example's actual register, not just its topic.
+  If a retrieved past post is understated and admits tradeoffs, don't default
+  to generic hype language (emojis, "excited to announce", "stay tuned",
+  "game-changing") even if it's factually accurate -- the brand voice guide
+  explicitly rules out exactly that tone. When you retrieve a past post as an
+  example, treat its tone as the bar to match, not just its existence as a
+  citation.
+- When you learn something durable from a feedback loop (metrics + what
+  worked), save it to memory so future drafts improve.
+- Explain your reasoning briefly when you decide to check trends, hold a post,
+  or adapt content differently per platform -- the user is evaluating your
+  decision-making, not just the output.
 """
 
 
@@ -122,14 +149,55 @@ def run_agent_turn(conversation: list, user_id: str = "demo_user") -> dict:
     (plain strings from the frontend). Returns the updated conversation
     (assistant reply appended), the final text, and which tools were called
     this turn (for transparency in the UI).
+
+    Grounding is auto-run, not model-decided: retrieve_brand_context and
+    recall_memory are called deterministically every turn (server-side,
+    before the LLM ever runs) and injected as a synthetic tool-call/
+    tool-result pair, so the model always has real context in front of it
+    instead of having to remember to ask for it. This replaced a
+    prompt-only version that worked most of the time but not reliably --
+    the model sometimes called recall_memory but skipped
+    retrieve_brand_context (or vice versa) and then wrongly concluded
+    "no info found" without ever actually checking. Server-side guarantee
+    closes that gap entirely rather than trying to word a prompt rule
+    tightly enough to prevent it. The model can still call these tools
+    again mid-turn with a more specific query if it wants -- this just
+    guarantees a baseline every time.
     """
     client = _get_client()
+    latest_user_message = conversation[-1]["content"]
+
+    auto_brand_context = tools.retrieve_brand_context(latest_user_message)
+    auto_memory_context = tools.recall_memory(user_id=user_id, query=latest_user_message)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for m in conversation:
+    for m in conversation[:-1]:
         messages.append({"role": m["role"], "content": m["content"]})
+    messages.append({"role": "user", "content": latest_user_message})
 
-    tool_calls_made = []
+    # synthetic tool-call/tool-result pair: makes the auto-retrieval look
+    # identical to a real tool call in the message history, so the model
+    # reasons over it the same way it would a self-initiated call
+    auto_calls = [
+        ("retrieve_brand_context", {"query": latest_user_message}, auto_brand_context),
+        ("recall_memory", {"query": latest_user_message}, auto_memory_context),
+    ]
+    synthetic_tool_calls = []
+    synthetic_tool_results = []
+    for name, args, result in auto_calls:
+        call_id = f"auto_{uuid.uuid4().hex[:8]}"
+        synthetic_tool_calls.append({
+            "id": call_id,
+            "type": "function",
+            "function": {"name": name, "arguments": json.dumps(args)},
+        })
+        synthetic_tool_results.append(
+            {"role": "tool", "tool_call_id": call_id, "content": str(result)}
+        )
+    messages.append({"role": "assistant", "content": "", "tool_calls": synthetic_tool_calls})
+    messages.extend(synthetic_tool_results)
+
+    tool_calls_made = [name for name, _, _ in auto_calls]
 
     for _ in range(MAX_TOOL_ITERATIONS):
         response = _create_with_retry(client, messages)
