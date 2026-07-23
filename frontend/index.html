@@ -1,545 +1,917 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta charset="UTF-8" />
-<title>AI Content Agent</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>
-  :root {
-    --bg: #FAF3E9;
-    --surface: #FFFCF7;
-    --surface-2: #F3E6D3;
-    --border: #E3D3BC;
-    --text: #3B2420;
-    --text-dim: #8A6F5E;
-    --accent: #7A1F2B;
-    --accent-soft: #F1DCDA;
-    --ok: #4B6B4F;
-    --danger: #A83A2E;
-    --serif: 'Fraunces', serif;
-    --sans: 'Inter', sans-serif;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: #EFE4D2;
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 16px;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 28px;
-  }
-  #root {
-    display: flex;
-    width: 100%;
-    max-width: 1360px;
-    height: 820px;
-    max-height: calc(100vh - 56px);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-  }
+  <meta charset="UTF-8" />
+  <title>AI Content Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --bg: #FAF3E9;
+      --surface: #FFFCF7;
+      --surface-2: #F3E6D3;
+      --border: #E3D3BC;
+      --text: #3B2420;
+      --text-dim: #8A6F5E;
+      --accent: #7A1F2B;
+      --accent-soft: #F1DCDA;
+      --ok: #4B6B4F;
+      --danger: #A83A2E;
+      --serif: 'Fraunces', serif;
+      --sans: 'Inter', sans-serif;
+    }
 
-  .rail {
-    width: 230px;
-    flex-shrink: 0;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 24px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .brand { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--accent); margin: 0 8px 2px; }
-  .brand-sub { font-size: 12px; color: var(--text-dim); margin: 0 8px 26px; }
-  .nav-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 13px; border-radius: 8px; cursor: pointer;
-    font-size: 15px; font-weight: 500; color: var(--text-dim);
-  }
-  .nav-item:hover { background: var(--surface-2); }
-  .nav-item.active { background: var(--accent-soft); color: var(--accent); }
-  .nav-badge { font-size: 12px; color: var(--text-dim); background: var(--surface-2); border-radius: 10px; padding: 1px 8px; }
-  .nav-item.active .nav-badge { color: var(--accent); background: #E6C6C4; }
+    * {
+      box-sizing: border-box;
+    }
 
-  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .panel-header { padding: 24px 32px; border-bottom: 1px solid var(--border); background: var(--surface); }
-  .panel-title { font-family: var(--serif); font-size: 24px; font-weight: 600; margin: 0 0 6px; color: var(--text); }
-  .panel-desc { color: var(--text-dim); font-size: 15px; margin: 0; max-width: 640px; line-height: 1.6; }
+    body {
+      margin: 0;
+      background: #EFE4D2;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+    }
 
-  .chat-body { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 18px; }
-  .msg-row { display: flex; }
-  .msg-row.user { justify-content: flex-end; }
-  .bubble { max-width: 640px; padding: 15px 18px; border-radius: 12px; line-height: 1.65; font-size: 15.5px; white-space: pre-wrap; }
-  .bubble.user { background: var(--accent); color: #FBEFE9; }
-  .bubble.assistant { background: var(--surface); border: 1px solid var(--border); }
-  .bubble.assistant.loading { color: var(--text-dim); font-style: italic; }
-  .trace { margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--border); font-size: 13px; color: var(--accent); font-weight: 500; }
-  .trace-label { color: var(--text-dim); font-weight: 400; margin-right: 6px; }
+    #root {
+      display: flex;
+      width: 100%;
+      max-width: 1360px;
+      height: 820px;
+      max-height: calc(100vh - 56px);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
 
-  .composer { border-top: 1px solid var(--border); padding: 18px 32px 24px; background: var(--surface); display: flex; flex-direction: column; gap: 12px; }
-  .ingest-row { display: flex; align-items: center; gap: 12px; }
-  .ingest-status { font-size: 13px; color: var(--text-dim); }
-  .composer-row { display: flex; gap: 12px; }
-  input[type=text] {
-    flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    border-radius: 9px; padding: 13px 15px; font-family: var(--sans); font-size: 15px;
-  }
-  input[type=text]:focus { outline: none; border-color: var(--accent); }
-  input[type=text]::placeholder { color: var(--text-dim); }
-  button {
-    font-family: var(--sans); font-size: 14.5px; font-weight: 500; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-    padding: 0 18px; cursor: pointer; height: 42px;
-  }
-  button:hover { border-color: var(--accent); color: var(--accent); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button:disabled:hover { border-color: var(--border); color: var(--text); }
-  button.primary { background: var(--accent); color: #FBEFE9; border-color: var(--accent); }
-  button.primary:hover { background: #631823; color: #FBEFE9; }
-  button.ghost { background: transparent; color: var(--text-dim); border-color: var(--border); font-size: 13px; padding: 5px 11px; height: auto; }
-  button.ghost:hover { color: var(--danger); border-color: var(--danger); }
+    .rail {
+      width: 230px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
-  .list { padding: 24px 32px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
-  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
-  .platform-tag { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 4px 10px; }
-  .scheduled-time { font-size: 13px; color: var(--text-dim); }
-  .card-content { line-height: 1.65; color: var(--text); margin-bottom: 13px; font-size: 15px; white-space: pre-wrap; }
-  .metrics-row { display: flex; gap: 18px; align-items: center; }
-  .metric { font-size: 13.5px; color: var(--ok); font-weight: 500; }
-  .mock-badge { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; margin-left: auto; }
-  .empty { font-size: 14px; color: var(--text-dim); padding: 48px 0; text-align: center; }
+    .brand {
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 0 8px 2px;
+    }
 
-  .mem-section { margin-bottom: 28px; }
-  .mem-section-title { font-size: 13px; font-weight: 600; letter-spacing: 0.03em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
-  .fact-pill { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 12px 15px; margin-bottom: 10px; }
-  .fact-key { font-size: 13.5px; font-weight: 600; color: var(--accent); flex-shrink: 0; }
-  .fact-value { flex: 1; font-size: 15px; }
-  .learning-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 13px 15px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 12px; }
-  .learning-text { flex: 1; line-height: 1.6; font-size: 15px; }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin: 0 8px 26px;
+    }
 
-  .doc-actions { display: flex; gap: 10px; padding: 20px 32px 0; }
-  .doc-status { font-size: 13px; color: var(--text-dim); padding: 0 32px; }
-  .doc-status.error { color: var(--danger); }
-  .file-input-label {
-    font-family: var(--sans); font-size: 14.5px; font-weight: 500; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-    padding: 0 18px; cursor: pointer; height: 42px; display: inline-flex; align-items: center;
-  }
-  .file-input-label:hover { border-color: var(--accent); color: var(--accent); }
-  .doc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 17px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; }
-  .doc-name { font-weight: 600; font-size: 14.5px; }
-  .doc-meta { font-size: 12.5px; color: var(--text-dim); flex: 1; }
-  .paste-form { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
-  .paste-form input[type=text] { margin-bottom: 10px; }
-  .paste-form textarea {
-    width: 100%; min-height: 110px; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); border-radius: 9px; padding: 12px 14px; font-family: var(--sans);
-    font-size: 14.5px; resize: vertical; margin-bottom: 10px;
-  }
-  .paste-form textarea:focus { outline: none; border-color: var(--accent); }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
 
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-</style>
+    .nav-item:hover {
+      background: var(--surface-2);
+    }
+
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .nav-badge {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 1px 8px;
+    }
+
+    .nav-item.active .nav-badge {
+      color: var(--accent);
+      background: #E6C6C4;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .panel-header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .panel-title {
+      font-family: var(--serif);
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 6px;
+      color: var(--text);
+    }
+
+    .panel-desc {
+      color: var(--text-dim);
+      font-size: 15px;
+      margin: 0;
+      max-width: 640px;
+      line-height: 1.6;
+    }
+
+    .chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .msg-row {
+      display: flex;
+    }
+
+    .msg-row.user {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: 640px;
+      padding: 15px 18px;
+      border-radius: 12px;
+      line-height: 1.65;
+      font-size: 15.5px;
+      white-space: pre-wrap;
+    }
+
+    .bubble.user {
+      background: var(--accent);
+      color: #FBEFE9;
+    }
+
+    .bubble.assistant {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .bubble.assistant.loading {
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    .trace {
+      margin-top: 12px;
+      padding-top: 11px;
+      border-top: 1px dashed var(--border);
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .trace-label {
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-right: 6px;
+    }
+
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 18px 32px 24px;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ingest-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ingest-status {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .composer-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    input[type=text] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 13px 15px;
+      font-family: var(--sans);
+      font-size: 15px;
+    }
+
+    input[type=text]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type=text]::placeholder {
+      color: var(--text-dim);
+    }
+
+    button {
+      font-family: var(--sans);
+      font-size: 14.5px;
+      font-weight: 500;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 0 18px;
+      cursor: pointer;
+      height: 42px;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    button:disabled:hover {
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #FBEFE9;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      background: #631823;
+      color: #FBEFE9;
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border-color: var(--border);
+      font-size: 13px;
+      padding: 5px 11px;
+      height: auto;
+    }
+
+    button.ghost:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .list {
+      padding: 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 11px;
+    }
+
+    .platform-tag {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 6px;
+      padding: 4px 10px;
+    }
+
+    .scheduled-time {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .card-content {
+      line-height: 1.65;
+      color: var(--text);
+      margin-bottom: 13px;
+      font-size: 15px;
+      white-space: pre-wrap;
+    }
+
+    .metrics-row {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .metric {
+      font-size: 13.5px;
+      color: var(--ok);
+      font-weight: 500;
+    }
+
+    .mock-badge {
+      font-size: 11px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 7px;
+      margin-left: auto;
+    }
+
+    .empty {
+      font-size: 14px;
+      color: var(--text-dim);
+      padding: 48px 0;
+      text-align: center;
+    }
+
+    .mem-section {
+      margin-bottom: 28px;
+    }
+
+    .mem-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .fact-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+    }
+
+    .fact-key {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .fact-value {
+      flex: 1;
+      font-size: 15px;
+    }
+
+    .learning-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 13px 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .learning-text {
+      flex: 1;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .doc-actions {
+      display: flex;
+      gap: 10px;
+      padding: 20px 32px 0;
+    }
+
+    .doc-status {
+      font-size: 13px;
+      color: var(--text-dim);
+      padding: 0 32px;
+    }
+
+    .doc-status.error {
+      color: var(--danger);
+    }
+
+    .file-input-label {
+      font-family: var(--sans);
+      font-size: 14.5px;
+      font-weight: 500;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 0 18px;
+      cursor: pointer;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .file-input-label:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .doc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 17px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .doc-name {
+      font-weight: 600;
+      font-size: 14.5px;
+    }
+
+    .doc-meta {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      flex: 1;
+    }
+
+    .paste-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .paste-form input[type=text] {
+      margin-bottom: 10px;
+    }
+
+    .paste-form textarea {
+      width: 100%;
+      min-height: 110px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 12px 14px;
+      font-family: var(--sans);
+      font-size: 14.5px;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    .paste-form textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+  </style>
 </head>
+
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect } = React;
-const API_BASE = "http://localhost:8000";
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const API_BASE = "http://localhost:8000";
 
-function TraceLine({ tools }) {
-  if (!tools || tools.length === 0) return null;
-  return (
-    <div className="trace">
-      <span className="trace-label">tools ·</span>
-      {tools.join(" · ")}
-    </div>
-  );
-}
-
-function ChatTab() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function send() {
-    if (!input.trim() || loading) return;
-    const next = [...messages, { role: "user", content: input, tools: [] }];
-    setMessages(next);
-    setInput("");
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: next.map(m => ({ role: m.role, content: m.content })),
-          user_id: "demo_user",
-        }),
-      });
-      const data = await res.json();
-      setMessages([...next, { role: "assistant", content: data.reply, tools: data.tool_calls_made || [] }]);
-    } catch (e) {
-      setMessages([...next, { role: "assistant", content: "Error: " + e.message, tools: [] }]);
+    function TraceLine({ tools }) {
+      if (!tools || tools.length === 0) return null;
+      return (
+        <div className="trace">
+          <span className="trace-label">tools ·</span>
+          {tools.join(" · ")}
+        </div>
+      );
     }
-    setLoading(false);
-  }
 
-  return (
-    <div className="main">
-      <div className="panel-header">
-        <p className="panel-title">Chat</p>
-        <p className="panel-desc">
-          RAG (brand voice + past posts) + memory + tool-calling driving a social content agent.
-          Manage what it's grounded in under the Documents tab. Try: "Draft a LinkedIn post
-          about our new retrieval pipeline" or "What niche trends should I consider for X?"
-        </p>
-      </div>
-      <div className="chat-body">
-        {messages.length === 0 && (
-          <div className="empty">No messages yet — say hello, or upload docs first under Documents.</div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={`msg-row ${m.role}`}>
-            <div className={`bubble ${m.role}`}>
-              {m.content}
-              {m.role === "assistant" && <TraceLine tools={m.tools} />}
+    function ChatTab() {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      async function send() {
+        if (!input.trim() || loading) return;
+        const next = [...messages, { role: "user", content: input, tools: [] }];
+        setMessages(next);
+        setInput("");
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: next.map(m => ({ role: m.role, content: m.content })),
+              user_id: "demo_user",
+            }),
+          });
+          const data = await res.json();
+          setMessages([...next, { role: "assistant", content: data.reply, tools: data.tool_calls_made || [] }]);
+        } catch (e) {
+          setMessages([...next, { role: "assistant", content: "Error: " + e.message, tools: [] }]);
+        }
+        setLoading(false);
+      }
+
+      return (
+        <div className="main">
+          <div className="panel-header">
+            <p className="panel-title">Chat</p>
+            <p className="panel-desc">
+              RAG (brand voice + past posts) + memory + tool-calling driving a social content agent.
+              Manage what it's grounded in under the Documents tab. Try: "Draft a LinkedIn post
+              about our new retrieval pipeline" or "What niche trends should I consider for X?"
+            </p>
+          </div>
+          <div className="chat-body">
+            {messages.length === 0 && (
+              <div className="empty">No messages yet — say hello, or upload docs first under Documents.</div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={`msg-row ${m.role}`}>
+                <div className={`bubble ${m.role}`}>
+                  {m.content}
+                  {m.role === "assistant" && <TraceLine tools={m.tools} />}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="msg-row assistant">
+                <div className="bubble assistant loading">Agent is thinking...</div>
+              </div>
+            )}
+          </div>
+          <div className="composer">
+            <div className="composer-row">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                placeholder="Ask the agent to draft, check trends, schedule, or review performance..."
+              />
+              <button className="primary" onClick={send} disabled={loading}>Send</button>
             </div>
           </div>
-        ))}
-        {loading && (
-          <div className="msg-row assistant">
-            <div className="bubble assistant loading">Agent is thinking...</div>
+        </div>
+      );
+    }
+
+    function DocumentsTab() {
+      const [docs, setDocs] = useState(null);
+      const [status, setStatus] = useState(null);
+      const [showPaste, setShowPaste] = useState(false);
+      const [pasteName, setPasteName] = useState("");
+      const [pasteContent, setPasteContent] = useState("");
+      const [busy, setBusy] = useState(false);
+
+      async function load() {
+        try {
+          const res = await fetch(`${API_BASE}/documents`);
+          const data = await res.json();
+          setDocs(data.documents || []);
+        } catch (e) {
+          setDocs([]);
+        }
+      }
+
+      useEffect(() => { load(); }, []);
+
+      async function handleUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        setBusy(true);
+        setStatus(null);
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          const res = await fetch(`${API_BASE}/documents/upload`, { method: "POST", body: formData });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Upload failed");
+          setStatus({ text: `Uploaded "${data.saved_as}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
+          load();
+        } catch (err) {
+          setStatus({ text: err.message, error: true });
+        }
+        setBusy(false);
+        e.target.value = "";
+      }
+
+      async function handlePasteSave() {
+        if (!pasteName.trim() || !pasteContent.trim()) return;
+        setBusy(true);
+        setStatus(null);
+        try {
+          const res = await fetch(`${API_BASE}/documents/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: pasteName, content: pasteContent }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Save failed");
+          setStatus({ text: `Saved "${data.saved_as}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
+          setPasteName("");
+          setPasteContent("");
+          setShowPaste(false);
+          load();
+        } catch (err) {
+          setStatus({ text: err.message, error: true });
+        }
+        setBusy(false);
+      }
+
+      async function handleDelete(name) {
+        setBusy(true);
+        setStatus(null);
+        try {
+          const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(name)}`, { method: "DELETE" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Delete failed");
+          setStatus({ text: `Deleted "${name}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
+          load();
+        } catch (err) {
+          setStatus({ text: err.message, error: true });
+        }
+        setBusy(false);
+      }
+
+      function formatSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        return `${(bytes / 1024).toFixed(1)} KB`;
+      }
+
+      return (
+        <div className="main">
+          <div className="panel-header">
+            <p className="panel-title">Documents</p>
+            <p className="panel-desc">
+              What the agent is grounded in — brand voice, past posts, style guides. Upload a file,
+              paste text directly, or delete something that's outdated. Every change re-indexes
+              automatically, no code editing required.
+            </p>
           </div>
-        )}
-      </div>
-      <div className="composer">
-        <div className="composer-row">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Ask the agent to draft, check trends, schedule, or review performance..."
-          />
-          <button className="primary" onClick={send} disabled={loading}>Send</button>
+          <div className="doc-actions">
+            <label className="file-input-label">
+              {busy ? "Working..." : "Upload file (.md / .txt / .pdf)"}
+              <input type="file" accept=".md,.txt,.pdf" style={{ display: "none" }} onChange={handleUpload} disabled={busy} />
+            </label>
+            <button onClick={() => setShowPaste(!showPaste)} disabled={busy}>
+              {showPaste ? "Cancel" : "Paste text"}
+            </button>
+          </div>
+          {status && <div className={`doc-status ${status.error ? "error" : ""}`}>{status.text}</div>}
+          <div className="list">
+            {showPaste && (
+              <div className="paste-form">
+                <input
+                  type="text"
+                  placeholder="Document name (e.g. q3-messaging-notes)"
+                  value={pasteName}
+                  onChange={(e) => setPasteName(e.target.value)}
+                />
+                <textarea
+                  placeholder="Paste or write the content here..."
+                  value={pasteContent}
+                  onChange={(e) => setPasteContent(e.target.value)}
+                />
+                <button className="primary" onClick={handlePasteSave} disabled={busy}>Save & index</button>
+              </div>
+            )}
+            {docs === null && <div className="empty">Loading...</div>}
+            {docs && docs.length === 0 && !showPaste && (
+              <div className="empty">No documents yet — upload one or paste text above.</div>
+            )}
+            {docs && docs.map((d) => (
+              <div className="doc-card" key={d.name}>
+                <span className="doc-name">{d.name}</span>
+                <span className="doc-meta">{formatSize(d.size_bytes)}</span>
+                <button className="ghost" onClick={() => handleDelete(d.name)} disabled={busy}>Delete</button>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function DocumentsTab() {
-  const [docs, setDocs] = useState(null);
-  const [status, setStatus] = useState(null);
-  const [showPaste, setShowPaste] = useState(false);
-  const [pasteName, setPasteName] = useState("");
-  const [pasteContent, setPasteContent] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function load() {
-    try {
-      const res = await fetch(`${API_BASE}/documents`);
-      const data = await res.json();
-      setDocs(data.documents || []);
-    } catch (e) {
-      setDocs([]);
+      );
     }
-  }
 
-  useEffect(() => { load(); }, []);
+    function ScheduledTab() {
+      const [posts, setPosts] = useState(null);
 
-  async function handleUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setBusy(true);
-    setStatus(null);
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const res = await fetch(`${API_BASE}/documents/upload`, { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Upload failed");
-      setStatus({ text: `Uploaded "${data.saved_as}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
-      load();
-    } catch (err) {
-      setStatus({ text: err.message, error: true });
-    }
-    setBusy(false);
-    e.target.value = "";
-  }
+      async function load() {
+        try {
+          const res = await fetch(`${API_BASE}/posts`);
+          const data = await res.json();
+          setPosts(data.posts || []);
+        } catch (e) {
+          setPosts([]);
+        }
+      }
 
-  async function handlePasteSave() {
-    if (!pasteName.trim() || !pasteContent.trim()) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const res = await fetch(`${API_BASE}/documents/text`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: pasteName, content: pasteContent }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Save failed");
-      setStatus({ text: `Saved "${data.saved_as}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
-      setPasteName("");
-      setPasteContent("");
-      setShowPaste(false);
-      load();
-    } catch (err) {
-      setStatus({ text: err.message, error: true });
-    }
-    setBusy(false);
-  }
+      useEffect(() => { load(); }, []);
 
-  async function handleDelete(name) {
-    setBusy(true);
-    setStatus(null);
-    try {
-      const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(name)}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Delete failed");
-      setStatus({ text: `Deleted "${name}" — reindexed (${data.chunks_indexed} chunks)`, error: false });
-      load();
-    } catch (err) {
-      setStatus({ text: err.message, error: true });
-    }
-    setBusy(false);
-  }
-
-  function formatSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return (
-    <div className="main">
-      <div className="panel-header">
-        <p className="panel-title">Documents</p>
-        <p className="panel-desc">
-          What the agent is grounded in — brand voice, past posts, style guides. Upload a file,
-          paste text directly, or delete something that's outdated. Every change re-indexes
-          automatically, no code editing required.
-        </p>
-      </div>
-      <div className="doc-actions">
-        <label className="file-input-label">
-          {busy ? "Working..." : "Upload file (.md / .txt)"}
-          <input type="file" accept=".md,.txt" style={{ display: "none" }} onChange={handleUpload} disabled={busy} />
-        </label>
-        <button onClick={() => setShowPaste(!showPaste)} disabled={busy}>
-          {showPaste ? "Cancel" : "Paste text"}
-        </button>
-      </div>
-      {status && <div className={`doc-status ${status.error ? "error" : ""}`}>{status.text}</div>}
-      <div className="list">
-        {showPaste && (
-          <div className="paste-form">
-            <input
-              type="text"
-              placeholder="Document name (e.g. q3-messaging-notes)"
-              value={pasteName}
-              onChange={(e) => setPasteName(e.target.value)}
-            />
-            <textarea
-              placeholder="Paste or write the content here..."
-              value={pasteContent}
-              onChange={(e) => setPasteContent(e.target.value)}
-            />
-            <button className="primary" onClick={handlePasteSave} disabled={busy}>Save & index</button>
+      return (
+        <div className="main">
+          <div className="panel-header">
+            <p className="panel-title">Scheduled posts</p>
+            <p className="panel-desc">
+              Posts the agent has scheduled via the schedule_post tool, with mocked engagement metrics.
+              Nothing here is posted to a real platform — see README for what a production swap looks like.
+            </p>
           </div>
-        )}
-        {docs === null && <div className="empty">Loading...</div>}
-        {docs && docs.length === 0 && !showPaste && (
-          <div className="empty">No documents yet — upload one or paste text above.</div>
-        )}
-        {docs && docs.map((d) => (
-          <div className="doc-card" key={d.name}>
-            <span className="doc-name">{d.name}</span>
-            <span className="doc-meta">{formatSize(d.size_bytes)}</span>
-            <button className="ghost" onClick={() => handleDelete(d.name)} disabled={busy}>Delete</button>
+          <div className="list">
+            {posts === null && <div className="empty">Loading...</div>}
+            {posts && posts.length === 0 && (
+              <div className="empty">No posts scheduled yet — ask the agent to draft and schedule one in Chat.</div>
+            )}
+            {posts && posts.map((p) => (
+              <div className="card" key={p.id}>
+                <div className="card-top">
+                  <span className="platform-tag">{p.platform}</span>
+                  <span className="scheduled-time">{p.scheduled_time}</span>
+                </div>
+                <div className="card-content">{p.content}</div>
+                <div className="metrics-row">
+                  <span className="metric">{p.metrics}</span>
+                  <span className="mock-badge">mocked</span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ScheduledTab() {
-  const [posts, setPosts] = useState(null);
-
-  async function load() {
-    try {
-      const res = await fetch(`${API_BASE}/posts`);
-      const data = await res.json();
-      setPosts(data.posts || []);
-    } catch (e) {
-      setPosts([]);
+        </div>
+      );
     }
-  }
 
-  useEffect(() => { load(); }, []);
+    function MemoryTab() {
+      const [data, setData] = useState(null);
 
-  return (
-    <div className="main">
-      <div className="panel-header">
-        <p className="panel-title">Scheduled posts</p>
-        <p className="panel-desc">
-          Posts the agent has scheduled via the schedule_post tool, with mocked engagement metrics.
-          Nothing here is posted to a real platform — see README for what a production swap looks like.
-        </p>
-      </div>
-      <div className="list">
-        {posts === null && <div className="empty">Loading...</div>}
-        {posts && posts.length === 0 && (
-          <div className="empty">No posts scheduled yet — ask the agent to draft and schedule one in Chat.</div>
-        )}
-        {posts && posts.map((p) => (
-          <div className="card" key={p.id}>
-            <div className="card-top">
-              <span className="platform-tag">{p.platform}</span>
-              <span className="scheduled-time">{p.scheduled_time}</span>
+      async function load() {
+        try {
+          const res = await fetch(`${API_BASE}/memory?user_id=demo_user`);
+          const json = await res.json();
+          setData(json);
+        } catch (e) {
+          setData({ facts: {}, learnings: [] });
+        }
+      }
+
+      useEffect(() => { load(); }, []);
+
+      async function forgetFact(key) {
+        await fetch(`${API_BASE}/memory/forget`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: "demo_user", fact_key: key }),
+        });
+        load();
+      }
+
+      async function forgetLearning(id) {
+        await fetch(`${API_BASE}/memory/forget`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: "demo_user", learning_id: id }),
+        });
+        load();
+      }
+
+      const factEntries = data ? Object.entries(data.facts || {}) : [];
+      const learnings = data ? (data.learnings || []) : [];
+
+      return (
+        <div className="main">
+          <div className="panel-header">
+            <p className="panel-title">Memory</p>
+            <p className="panel-desc">
+              What the agent has stored on disk for this user — structured facts (SQLite) and
+              freeform learnings from feedback loops (Chroma). Persists across sessions; delete
+              anything below to correct it.
+            </p>
+          </div>
+          <div className="list">
+            <div className="mem-section">
+              <div className="mem-section-title">Facts</div>
+              {factEntries.length === 0 && <div className="empty">No stored facts yet.</div>}
+              {factEntries.map(([key, value]) => (
+                <div className="fact-pill" key={key}>
+                  <span className="fact-key">{key}</span>
+                  <span className="fact-value">{value}</span>
+                  <button className="ghost" onClick={() => forgetFact(key)}>Forget</button>
+                </div>
+              ))}
             </div>
-            <div className="card-content">{p.content}</div>
-            <div className="metrics-row">
-              <span className="metric">{p.metrics}</span>
-              <span className="mock-badge">mocked</span>
+            <div className="mem-section">
+              <div className="mem-section-title">Learnings</div>
+              {learnings.length === 0 && <div className="empty">No stored learnings yet.</div>}
+              {learnings.map((l) => (
+                <div className="learning-card" key={l.id}>
+                  <span className="learning-text">{l.text}</span>
+                  <button className="ghost" onClick={() => forgetLearning(l.id)}>Forget</button>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MemoryTab() {
-  const [data, setData] = useState(null);
-
-  async function load() {
-    try {
-      const res = await fetch(`${API_BASE}/memory?user_id=demo_user`);
-      const json = await res.json();
-      setData(json);
-    } catch (e) {
-      setData({ facts: {}, learnings: [] });
+        </div>
+      );
     }
-  }
 
-  useEffect(() => { load(); }, []);
+    function App() {
+      const [tab, setTab] = useState("chat");
+      const [docCount, setDocCount] = useState(null);
+      const [postCount, setPostCount] = useState(null);
+      const [memCount, setMemCount] = useState(null);
 
-  async function forgetFact(key) {
-    await fetch(`${API_BASE}/memory/forget`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: "demo_user", fact_key: key }),
-    });
-    load();
-  }
+      useEffect(() => {
+        fetch(`${API_BASE}/documents`).then(r => r.json()).then(d => setDocCount((d.documents || []).length)).catch(() => { });
+        fetch(`${API_BASE}/posts`).then(r => r.json()).then(d => setPostCount((d.posts || []).length)).catch(() => { });
+        fetch(`${API_BASE}/memory?user_id=demo_user`).then(r => r.json()).then(d => {
+          setMemCount(Object.keys(d.facts || {}).length + (d.learnings || []).length);
+        }).catch(() => { });
+      }, [tab]);
 
-  async function forgetLearning(id) {
-    await fetch(`${API_BASE}/memory/forget`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: "demo_user", learning_id: id }),
-    });
-    load();
-  }
-
-  const factEntries = data ? Object.entries(data.facts || {}) : [];
-  const learnings = data ? (data.learnings || []) : [];
-
-  return (
-    <div className="main">
-      <div className="panel-header">
-        <p className="panel-title">Memory</p>
-        <p className="panel-desc">
-          What the agent has stored on disk for this user — structured facts (SQLite) and
-          freeform learnings from feedback loops (Chroma). Persists across sessions; delete
-          anything below to correct it.
-        </p>
-      </div>
-      <div className="list">
-        <div className="mem-section">
-          <div className="mem-section-title">Facts</div>
-          {factEntries.length === 0 && <div className="empty">No stored facts yet.</div>}
-          {factEntries.map(([key, value]) => (
-            <div className="fact-pill" key={key}>
-              <span className="fact-key">{key}</span>
-              <span className="fact-value">{value}</span>
-              <button className="ghost" onClick={() => forgetFact(key)}>Forget</button>
+      return (
+        <React.Fragment>
+          <div className="rail">
+            <div className="brand">AI Content Agent</div>
+            <div className="brand-sub">rag · memory · tool-calling</div>
+            <div className={`nav-item ${tab === "chat" ? "active" : ""}`} onClick={() => setTab("chat")}>
+              <span>Chat</span>
             </div>
-          ))}
-        </div>
-        <div className="mem-section">
-          <div className="mem-section-title">Learnings</div>
-          {learnings.length === 0 && <div className="empty">No stored learnings yet.</div>}
-          {learnings.map((l) => (
-            <div className="learning-card" key={l.id}>
-              <span className="learning-text">{l.text}</span>
-              <button className="ghost" onClick={() => forgetLearning(l.id)}>Forget</button>
+            <div className={`nav-item ${tab === "documents" ? "active" : ""}`} onClick={() => setTab("documents")}>
+              <span>Documents</span>
+              {docCount !== null && <span className="nav-badge">{docCount}</span>}
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+            <div className={`nav-item ${tab === "scheduled" ? "active" : ""}`} onClick={() => setTab("scheduled")}>
+              <span>Scheduled</span>
+              {postCount !== null && <span className="nav-badge">{postCount}</span>}
+            </div>
+            <div className={`nav-item ${tab === "memory" ? "active" : ""}`} onClick={() => setTab("memory")}>
+              <span>Memory</span>
+              {memCount !== null && <span className="nav-badge">{memCount}</span>}
+            </div>
+          </div>
+          {tab === "chat" && <ChatTab />}
+          {tab === "documents" && <DocumentsTab />}
+          {tab === "scheduled" && <ScheduledTab />}
+          {tab === "memory" && <MemoryTab />}
+        </React.Fragment>
+      );
+    }
 
-function App() {
-  const [tab, setTab] = useState("chat");
-  const [docCount, setDocCount] = useState(null);
-  const [postCount, setPostCount] = useState(null);
-  const [memCount, setMemCount] = useState(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/documents`).then(r => r.json()).then(d => setDocCount((d.documents || []).length)).catch(() => {});
-    fetch(`${API_BASE}/posts`).then(r => r.json()).then(d => setPostCount((d.posts || []).length)).catch(() => {});
-    fetch(`${API_BASE}/memory?user_id=demo_user`).then(r => r.json()).then(d => {
-      setMemCount(Object.keys(d.facts || {}).length + (d.learnings || []).length);
-    }).catch(() => {});
-  }, [tab]);
-
-  return (
-    <React.Fragment>
-      <div className="rail">
-        <div className="brand">AI Content Agent</div>
-        <div className="brand-sub">rag · memory · tool-calling</div>
-        <div className={`nav-item ${tab === "chat" ? "active" : ""}`} onClick={() => setTab("chat")}>
-          <span>Chat</span>
-        </div>
-        <div className={`nav-item ${tab === "documents" ? "active" : ""}`} onClick={() => setTab("documents")}>
-          <span>Documents</span>
-          {docCount !== null && <span className="nav-badge">{docCount}</span>}
-        </div>
-        <div className={`nav-item ${tab === "scheduled" ? "active" : ""}`} onClick={() => setTab("scheduled")}>
-          <span>Scheduled</span>
-          {postCount !== null && <span className="nav-badge">{postCount}</span>}
-        </div>
-        <div className={`nav-item ${tab === "memory" ? "active" : ""}`} onClick={() => setTab("memory")}>
-          <span>Memory</span>
-          {memCount !== null && <span className="nav-badge">{memCount}</span>}
-        </div>
-      </div>
-      {tab === "chat" && <ChatTab />}
-      {tab === "documents" && <DocumentsTab />}
-      {tab === "scheduled" && <ScheduledTab />}
-      {tab === "memory" && <MemoryTab />}
-    </React.Fragment>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-</script>
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
 </body>
+
 </html>

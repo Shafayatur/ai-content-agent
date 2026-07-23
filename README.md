@@ -37,7 +37,7 @@ The model decides per turn what to call — nothing here is a hardcoded pipeline
 | | |
 |---|---|
 | **RAG** | Header-aware chunking over brand voice, past posts, and style guide docs |
-| **Documents** | Upload, paste, or delete knowledge base docs from the UI — no code/repo access needed |
+| **Documents** | Upload (.md/.txt/.pdf), paste, or delete knowledge base docs from the UI — no code/repo access needed |
 | **Memory** | Structured facts (SQLite) + freeform learnings (Chroma), persists across sessions |
 | **Tool-calling** | Agent decides when to retrieve, remember, check trends, schedule, or check metrics |
 | **Transparency** | Every response shows exactly which tools fired |
