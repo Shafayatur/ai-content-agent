@@ -21,13 +21,13 @@ An agent that drafts, schedules, and improves social media posts — grounded in
 brand voice, with memory that persists across sessions.
 
 ```
-                   User ──► Agent loop (Groq) ──► decides which tool(s) to call
-                                               │
-                  ┌──────────┬─────────────────┼───────────────┬───────────────┐
-                  ▼          ▼                 ▼               ▼               ▼
-                RAG        Memory            Trends         Schedule         Metrics
-              (Chroma)  (SQLite +           (mocked)        (mocked)         (mocked)
-                          Chroma)
+User ──► Agent loop (Groq) ──► decides which tool(s) to call
+                │
+     ┌──────────┼──────────┬───────────────┬──────────────────┐
+     ▼          ▼          ▼               ▼                  ▼
+  RAG        Memory     Trends         Schedule            Metrics
+ (Chroma)  (SQLite +   (mocked)        (mocked)            (mocked)
+            Chroma)
 ```
 
 The model decides per turn what to call — nothing here is a hardcoded pipeline.
@@ -37,10 +37,11 @@ The model decides per turn what to call — nothing here is a hardcoded pipeline
 | | |
 |---|---|
 | **RAG** | Header-aware chunking over brand voice, past posts, and style guide docs |
+| **Documents** | Upload, paste, or delete knowledge base docs from the UI — no code/repo access needed |
 | **Memory** | Structured facts (SQLite) + freeform learnings (Chroma), persists across sessions |
 | **Tool-calling** | Agent decides when to retrieve, remember, check trends, schedule, or check metrics |
 | **Transparency** | Every response shows exactly which tools fired |
-| **UI** | Chat / Scheduled Posts / Memory — three tabs, nothing hidden |
+| **UI** | Chat / Documents / Scheduled Posts / Memory — four tabs, nothing hidden |
 
 ## Quick start
 
@@ -52,7 +53,8 @@ uvicorn backend.main:app --reload --port 8000     # terminal 1
 cd frontend && python3 -m http.server 5500        # terminal 2
 ```
 
-Open `http://localhost:5500`, click **Re-index knowledge base**, then chat.
+Open `http://localhost:5500` and go to the **Documents** tab to upload or paste your brand
+docs (sample ones are included) — indexing happens automatically. Then chat.
 
 ## What's real vs. mocked
 

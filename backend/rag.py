@@ -82,7 +82,7 @@ def ingest_directory(dir_path: str):
 
         all_chunks = []
         for fname in os.listdir(dir_path):
-            if not fname.endswith(".md"):
+            if not fname.lower().endswith((".md", ".txt")):
                 continue
             with open(os.path.join(dir_path, fname), "r") as f:
                 text = f.read()

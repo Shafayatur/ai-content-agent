@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from . import agent, rag, memory, tools
+from . import agent, rag, memory, tools, docs_store
 
 app = FastAPI(title="AI Content Agent")
 
@@ -33,10 +33,57 @@ def chat(req: ChatRequest):
 @app.post("/ingest")
 def ingest():
     """Re-index the brand knowledge base from data/brand_docs/."""
-    import os
-    docs_path = os.path.join(os.path.dirname(__file__), "..", "data", "brand_docs")
-    count = rag.ingest_directory(docs_path)
+    count = rag.ingest_directory(docs_store.DOCS_DIR)
     return {"chunks_indexed": count}
+
+
+@app.get("/documents")
+def list_documents():
+    """Everything currently in the brand knowledge base, for the Documents
+    UI tab -- lets a non-technical user see (and manage) what the agent is
+    grounded in without opening the repo."""
+    return {"documents": docs_store.list_documents()}
+
+
+@app.post("/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Real file upload (multipart) -- .md/.txt only, size-capped, filename
+    sanitized. See docs_store.py for the actual validation logic."""
+    content = await file.read()
+    try:
+        saved_name = docs_store.save_uploaded_bytes(file.filename, content)
+    except docs_store.DocumentError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    # auto-reindex so the upload is immediately usable, not just saved
+    count = rag.ingest_directory(docs_store.DOCS_DIR)
+    return {"saved_as": saved_name, "chunks_indexed": count}
+
+
+class TextDocumentRequest(BaseModel):
+    name: str
+    content: str
+
+
+@app.post("/documents/text")
+def add_text_document(req: TextDocumentRequest):
+    """Paste-text flow -- for when someone wants to add a quick note/policy
+    without having a file to upload."""
+    try:
+        saved_name = docs_store.save_text_document(req.name, req.content)
+    except docs_store.DocumentError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    count = rag.ingest_directory(docs_store.DOCS_DIR)
+    return {"saved_as": saved_name, "chunks_indexed": count}
+
+
+@app.delete("/documents/{filename}")
+def delete_document(filename: str):
+    try:
+        docs_store.delete_document(filename)
+    except docs_store.DocumentError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    count = rag.ingest_directory(docs_store.DOCS_DIR)
+    return {"deleted": filename, "chunks_indexed": count}
 
 
 @app.get("/posts")
