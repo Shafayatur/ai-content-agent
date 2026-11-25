@@ -13,3 +13,5 @@ memory_store/*.db
 
 # OS
 .DS_Store
+
+venv_clean/
